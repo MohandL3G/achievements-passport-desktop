@@ -47,7 +47,7 @@ impl PassportApp {
 
         let default_dir = default_achievements_dir();
         let default_output = dirs::picture_dir()
-            .or_else(dirs::desktop_dir())
+            .or_else(dirs::desktop_dir)
             .unwrap_or_else(|| PathBuf::from("."))
             .join("achievements_passport.png");
 
@@ -303,47 +303,53 @@ impl eframe::App for PassportApp {
 
                         // If single game mode: game selector
                         if self.mode == PassportMode::SingleGame {
+                            let mut selection_changed = false;
                             if let Some(data) = &self.data {
                                 ui.label("Search & Select Game:");
                                 ui.text_edit_singleline(&mut self.game_search_query);
 
-                                let filtered_games: Vec<&GameItem> = data
+                                let query = self.game_search_query.to_lowercase();
+                                let filtered_games: Vec<(String, String)> = data
                                     .games
                                     .iter()
                                     .filter(|g| {
-                                        if self.game_search_query.is_empty() {
-                                            true
-                                        } else {
-                                            g.name.to_lowercase().contains(
-                                                &self.game_search_query.to_lowercase(),
-                                            )
-                                        }
+                                        query.is_empty()
+                                            || g.name.to_lowercase().contains(&query)
                                     })
                                     .take(50)
+                                    .map(|g| {
+                                        (
+                                            g.name.clone(),
+                                            format!(
+                                                "{} ({}/{} - {}%)",
+                                                g.name, g.unlocked, g.total, g.pct
+                                            ),
+                                        )
+                                    })
                                     .collect();
 
                                 egui::ComboBox::from_id_salt("game_select_box")
                                     .selected_text(&self.selected_game_name)
                                     .width(ui.available_width() - 10.0)
                                     .show_ui(ui, |ui| {
-                                        for game in filtered_games {
-                                            let label = format!(
-                                                "{} ({}/{} - {}%)",
-                                                game.name, game.unlocked, game.total, game.pct
-                                            );
+                                        for (name, label) in filtered_games {
                                             if ui
                                                 .selectable_value(
                                                     &mut self.selected_game_name,
-                                                    game.name.clone(),
+                                                    name,
                                                     label,
                                                 )
                                                 .clicked()
                                             {
-                                                self.generate_and_render_preview(ctx);
+                                                selection_changed = true;
                                             }
                                         }
                                     });
                                 ui.add_space(8.0);
+                            }
+
+                            if selection_changed {
+                                self.generate_and_render_preview(ctx);
                             }
                         }
 

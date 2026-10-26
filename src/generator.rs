@@ -3,6 +3,7 @@
 use crate::data::{AchievementsData, GameItem};
 use crate::icons::*;
 use resvg::tiny_skia;
+use std::sync::Arc;
 use usvg::fontdb;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -515,11 +516,14 @@ fn format_number(val: u32) -> String {
 
 /// Renders an SVG string into high-resolution PNG bytes using resvg.
 pub fn render_svg_to_png(svg_str: &str, width: u32, height: u32) -> Result<Vec<u8>, String> {
-    let opt = usvg::Options::default();
     let mut fontdb = fontdb::Database::new();
     fontdb.load_system_fonts();
 
-    let tree = usvg::Tree::from_str(svg_str, &opt, &fontdb)
+    let mut opt = usvg::Options::default();
+    opt.font_family = "sans-serif".to_string();
+    opt.fontdb = Arc::new(fontdb);
+
+    let tree = usvg::Tree::from_str(svg_str, &opt)
         .map_err(|e| format!("Failed to parse SVG: {}", e))?;
 
     let mut pixmap = tiny_skia::Pixmap::new(width, height)
